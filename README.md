@@ -7,7 +7,7 @@
 ## 📸 Overview & Codebase Structure
 
 This project is developed with a modular structure that decouples the backend API server from the mobile client application:
-
+```text
 project2-identity-AI/          # Backend Root Directory
 ├── .env                       # Local Environment Secrets (Git Ignored)
 ├── .env.example               # Environment Variable Template
