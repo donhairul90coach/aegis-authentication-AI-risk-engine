@@ -1,23 +1,190 @@
-# Aegis Auth - Authentication & AI Risk Engine Backend
+# 🛡️ AegisAuth: AI-Powered Adaptive Authentication System
 
-A robust Node.js & Express authentication backend service integrated with SQL database, featuring JWT token-based authorization, middleware guards, and an AI Risk Engine framework.
+> A modern authentication system combining conventional security controls (JWT, Bcrypt, OTP) with an AI-driven behavioral risk scoring engine powered by the **Groq SDK**, supported by a cross-platform architecture (Node.js & React Native/Expo).
 
-##  Full Tech Stack
-- **Runtime:** Node.js
-- **Framework:** Express.js
-- **Database:** SQLite (`aegis_auth.db`) / PostgreSQL
-- **Security & AI:** JSON Web Tokens (JWT), Bcrypt Password Hashing, Environment Management (`.env`), AI Risk Engine Logic
-- **Client App:** React Native / Expo (`aegis-auth-mobile`)
+---
 
-##  Core Features & Architecture
-- **Request Flow:** `Request -> Authentication Middleware -> Risk Assessment -> Route Controller -> Database`
-- **AI & Risk Engine Integration:** Evaluates request context and risk factors before authorizing sensitive user sessions.
-- **JWT Protection:** Secure endpoint protection using `jwt.verify` middleware.
-- **Secure Storage:** Encrypted passwords stored safely in database.
-- **Environment Safety:** Configured `.env.example` template for clean credential setup.
+## 📸 Overview & Codebase Structure
 
-##  Getting Started
-1. Clone the repository
-2. Install dependencies: `npm install`
-3. Configure environment: Copy `.env.example` to `.env`
-4. Start the server: `node server.js`
+This project is developed with a modular structure that decouples the backend API server from the mobile client application:
+
+project2-identity-AI/          # Backend Root Directory
+├── .env                       # Local Environment Secrets (Git Ignored)
+├── .env.example               # Environment Variable Template
+├── .gitignore                 # Git Exclusion Configuration
+├── aegis_auth.db              # SQLite Database File (Git Ignored)
+├── database.js                # Database Schema & SQLite Initialization
+├── package.json               # Backend Dependencies & Scripts
+├── server.js                  # Express Server, Groq AI Risk Engine & Auth APIs
+└── aegis-auth-mobile/         # Mobile App Directory (React Native / Expo)
+    ├── assets/                # App Icons & Visual Assets
+    ├── App.js                 # UI Dynamic State Machine & Axios API Handler
+    ├── app.json               # Expo App Configuration
+    ├── index.js               # Entry Point (registerRootComponent)
+    ├── package.json           # Mobile Dependencies & Scripts
+    └── .gitignore             # Mobile Environment Ignore Configuration
+```
+AegisAuth is designed with a clear Separation of Concerns between the backend API server and the mobile client:
+
+```text
+
+[ React Native Mobile Client ] --(HTTP / Axios)--> [ Express.js Backend API ]
+                                                          |
+                         +--------------------------------+--------------------------------+
+                         |                                |                                |
+                [ SQLite Database ]             [ Groq AI Engine ]              [ Security Layer ]
+                - users                         - Real-time Risk Scoring        - Bcrypt Hashing
+                - audit_logs                    - IP & User-Agent Analysis      - JWT Tokens
+                - reset_tokens                                                  - OTP Expiry Logic
+```
+
+## Tech Stack & Dependencies
+
+### 1. Backend Service (`project2-identity-AI`)
+
+| Category | Component / Library | Version | Purpose |
+| :--- | :--- | :--- | :--- |
+| **Runtime & Framework** | Node.js / Express.js | `v5.3.0` | Server runtime environment and RESTful API framework. |
+| **Database** | SQLite3 | `^6.0.1` | Lightweight relational database management system. |
+| **AI Risk Engine** | Groq SDK (`openai/gpt-oss-120b`) | `^1.6.0` | Behavioral risk scoring engine based on IP and metadata. |
+| **Security & Auth** | `bcrypt` / `jsonwebtoken` | `^6.0.0` / `^9.0.3` | Password hashing algorithms and stateless JWT authentication. |
+| **Utilities & Security** | `dotenv` / `cors` / `speakeasy` / `qrcode` | `^18.0.8` / `^2.8.6` | Environment variable management, CORS policies, and TOTP/QR utilities. |
+
+### 2. Mobile Frontend (`aegis-auth-mobile`)
+
+| Category | Component / Library | Version | Purpose |
+| :--- | :--- | :--- | :--- |
+| **Framework** | React Native / Expo | `0.86.3` / `~57.0.29` | Cross-platform mobile client development framework. |
+| **HTTP Client** | Axios | `^1.20.0` | Promise-based HTTP client for API communication. |
+| **UI & Safe Insets** | `react-native-safe-area-context` | `~5.7.0` | Safe area inset management across iOS and Android screens. |
+| **Storage Security** | `expo-secure-store` | `~57.0.4` | Encrypted key-value storage for client-side credentials. |
+
+---
+
+## Database Schema Design (`aegis_auth.db`)
+
+### 1. Table: `users`
+> **Purpose:** User account management and credentials storage.
+
+| Column Name | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `INTEGER` | `PRIMARY KEY`, `AUTOINCREMENT` | Unique identifier for the user. |
+| `username` | `TEXT` | `UNIQUE`, `NOT NULL` | Unique account display name. |
+| `email` | `TEXT` | `UNIQUE`, `NOT NULL` | Registered primary email address. |
+| `password_hash` | `TEXT` | `NOT NULL` | Encrypted password string using `bcrypt`. |
+| `created_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Timestamp of account registration. |
+
+### 2. Table: `audit_logs`
+> **Purpose:** Security audit trails and AI risk scoring logs.
+
+| Column Name | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `INTEGER` | `PRIMARY KEY`, `AUTOINCREMENT` | Unique audit log entry ID. |
+| `user_id` | `INTEGER` | `FOREIGN KEY` (Nullable) | Associated user ID for the security event. |
+| `event_type` | `TEXT` | `NOT NULL` | Event classification (e.g., `LOGIN_ATTEMPT`). |
+| `risk_score` | `INTEGER` | None | Numerical risk score generated by AI (0–100). |
+| `risk_reason` | `TEXT` | None | Brief explanation of the assigned risk score. |
+| `ip_address` | `TEXT` | None | Client IP address captured during the request. |
+| `user_agent` | `TEXT` | None | Client device/browser User-Agent string. |
+| `created_at` | `DATETIME` | `DEFAULT CURRENT_TIMESTAMP` | Timestamp of the logged security event. |
+
+### 3. Table: `reset_tokens`
+> **Purpose:** OTP lifecycle and password recovery management.
+
+| Column Name | Data Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | `INTEGER` | `PRIMARY KEY`, `AUTOINCREMENT` | Unique token entry ID. |
+| `email` | `TEXT` | `NOT NULL` | Target email address for password reset. |
+| `otp` | `TEXT` | `NOT NULL` | Randomly generated 6-digit verification code. |
+| `expires_at` | `DATETIME` | `NOT NULL` | Expiration timestamp (10-minute validity window). |
+| `used` | `INTEGER` | `DEFAULT 0` | Single-use flag (`0` = Unused, `1` = Used). |
+
+## Core Features & Security Safeguards
+
+### 1. Real-Time AI Risk Assessment Engine
+- Analysis Metrics: Critical operations (e.g., LOGIN and PASSWORD_RESET_REQUEST) are automatically processed via the analyzeRiskWithGroq() execution handler.
+- Metadata Evaluation: Request metadata, including client IP address and device User-Agent, is evaluated through the Groq AI API.
+- Structured Output: Generates a JSON response containing a numerical risk score (0–100 scale) alongside a contextual security rationale
+
+### 2. Adaptive Access Control Thresholds
+- **High-Risk Login Prevention:** If `risk.score > 70`, authentication attempts are immediately blocked by the system with a `403 Forbidden` response status.
+- **High-Risk Password Recovery Prevention:** If `risk.score > 85`, OTP requests for password recovery are automatically rejected.
+- 
+### 3. Secure Credential Management
+- **Password Protection Controls:** User passwords are never stored in plain text.
+- **Hashing Algorithm:** All passwords are securely hashed using the `bcrypt` algorithm with a cost factor of 10 prior to database persistence.
+
+### 4. Lifecycle & OTP Security Management
+- **Random Generation:** A 6-digit OTP verification code is automatically generated for each password recovery request.
+- **Expiration Mechanism:** Features a validity period limited to exactly **10 minutes** (`expires_at`).
+- **Replay Attack Mitigation:** Upon successful verification, the token is immediately marked with the status `used = 1` to prevent token reuse.
+
+### 5. Dynamic Mobile UI State Machine
+- **Centralized State Management:** The mobile application interface is dynamically controlled via a single `mode` state (`LOGIN` | `REGISTER` | `FORGOT_OTP` | `RESET_PASS`).
+-**Risk Visualization:** An interactive dashboard displays authentication status, account profiles, and visual AI risk score indicators (safe/danger categories).
+
+- ## API Endpoints Reference
+
+| Method | Endpoint | Description | Request Body / Headers | AI Safeguard |
+| :--- | :--- | :--- | :--- | :--- |
+| `POST` | `/api/register` | new account registration| `{ username, email, password }` | N/A |
+| `POST` | `/api/login` | Login authentication & JWT token issuance | `{ email, password }` | Active (Block if Score > 70) |
+| `POST` | `/api/forgot-password` | Password recovery OTP request | `{ email }` | Active (Block if Score > 85) |
+| `POST` | `/api/reset-password` | OTP verification & new password update | `{ email, otp, newPassword }` | N/A |
+
+## Environment Setup & Installation Guide
+
+### 1. Environment Configuration (`.env`)
+
+Create a `.env` file in the backend root directory based on the following template:
+
+```env
+PORT=5000
+JWT_SECRET=your_jwt_secret_here
+GEMINI_API_KEY=your_gemini_api_key_here
+GROQ_API_KEY=your_groq_api_key_here
+```
+
+### 2. Backend Setup & Execution (project2-identity-AI)
+
+Execute the following commands in the root directory:
+
+```bash
+# 1. Install backend dependencies
+npm install
+
+# 2. Start the Express server
+node server.js
+```
+### 3. Mobile Client Setup & Execution (aegis-auth-mobile)
+
+Execute the following commands to configure and start the mobile application:
+
+```bash
+# 1. Navigate to the mobile application directory
+cd aegis-auth-mobile
+
+# 2. Install mobile dependencies
+npm install
+
+# 3. Configure the local network IP address in App.js
+# Example: const API_URL = 'http://<LOCAL_LAN_IP>:5000/api';
+
+# 4. Start the Expo development server
+npx expo start
+```
+### Development Roadmap
+
+- [x] Core Authentication Infrastructure (Register, Login, JWT, Bcrypt)
+
+- [x] Relational Database Schema (SQLite) & Audit Logging System
+
+- [x] AI-Based Behavioral Risk Assessment Engine (Groq SDK)
+
+- [x] OTP Generation & Password Recovery Lifecycle (Expiration & Single-Use Rules)
+
+- [x] Mobile Client Interface (React Native / Expo) with Visual Risk Indicators
+
+- [ ] Native Biometric Authentication Integration (Expo Local Authentication / Fingerprint / Face ID)
+
+- [ ] Token Refresh Rotation Mechanism & Rate Limiting Middleware
